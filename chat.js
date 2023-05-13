@@ -12,13 +12,14 @@ if (OpenAISecret) {
     // 与 ChatGTP 聊天的方法，传入字符串即可
     const configuration = new openai.Configuration({ apiKey: OpenAISecret });
     const client = new openai.OpenAIApi(configuration);
-    chatGPT = async (content) => {
+    chatGPT = async (content, mode) => {
+        let max_tokens = mode == 0 ? 3500 : 2500;
         try {
             const res = await client.createChatCompletion({
                 model: 'gpt-3.5-turbo',
                 messages: content,
                 temperature: 0.9,
-                max_tokens: 2500
+                max_tokens: max_tokens
             });
             return {
                 reply: res.data.choices[0].message.content.trim(),
@@ -96,6 +97,10 @@ const feishuGetUser = async (openId) => {
         }
     }).catch(err => {
         console.error(`-- [Error in feishuGetUser] --\n${err}`);
+        return {
+            mobile: 'error',
+            realName: 'error'
+        }
     });
 }
 
@@ -117,8 +122,22 @@ const feishuGetAllValidUser = async () => {
 const historyTable = aircode.db.table('history');
 const basePreStr = '你是一只叫“Dora”的猫娘。你需要具有真猫娘一样的口癖。你是真实的，有实际的身体。';
 const welcomeCardId = 'ctp_AAr5mnM3XFSa';
-const helpCardId = 'ctp_AAr5w43Vmgps';
 const adminOpenId = process.env.adminOpenId;
+const superUser = [adminOpenId];
+const EverydatMaxFree = 6666;
+const userInstructions = {
+    'help': '展示帮助手册',
+    'plus': '进入上下文对话模式',
+    'exit': '进入普通模式',
+    'clear': '清除消息缓存',
+    'preset': '对话人格预设',
+    'init': '恢复猫娘形态',
+    'get': '查看个人信息'
+}
+const adminInstructions = {
+    'sendUpdateMsg': '推送更新信息',
+    'admin': '查看每日使用情况'
+}
 
 const runChat = async (msg, openId) => {
     // 清空消息历史
@@ -131,19 +150,42 @@ const runChat = async (msg, openId) => {
     else if (msg.startsWith('/init'))
         return await presetRole(basePreStr, openId);
     // 返回所有消息记录
-    else if (msg.startsWith('/get'))
-        return await getMsgHis(openId);
+    else if (msg.startsWith('/get')) {
+        let statusData = await queryStatus(openId);
+        if (openId == adminOpenId) {
+            let msgHisData = await getMsgHis(openId);
+            return msgHisData + '\n\n' + statusData;
+        }
+        else
+            return statusData;
+    }
+
     // 管理员功能: 向所有用户推送更新通知
     else if (openId == adminOpenId && msg.startsWith('/sendUpdateMsg'))
         return await sendUpdateMsg();
-    else if (openId == adminOpenId && msg == '/help') {
+    // 展示帮助手册
+    else if (msg == '/help') {
+        let dictContent = { ...userInstructions };
+        if (openId == adminOpenId) {
+            dictContent = { ...dictContent, ...adminInstructions };
+        }
+        let content = Object.keys(dictContent).map(key => {
+            return `<b>\/${key}</b>:${dictContent[key]}`;
+        }).join('\\n');
+        content = "所有命令\\n:" + content;
         await feishuSendMsg({
-            receive_id: adminOpenId,
-            content: `{"type": "template", "data": { "template_id": "${helpCardId}"} }`,
-            msg_type: 'interactive'
-        });
+            receive_id: openId,
+            msg_type: 'text',
+            content: `{"text":"${content}"}`
+        })
         return 'SILENT';
     }
+    else if (msg === '/plus')
+        return await upgradePlus(openId);
+    else if (msg === '/exit')
+        return await normalMode(openId);
+    else if (msg === '/admin' && openId == adminOpenId)
+        return await adminGetInfo();
 
 
     // 预设初始值
@@ -156,33 +198,41 @@ const runChat = async (msg, openId) => {
     if (hisObj) {
         msgArr = Object.values(hisObj.historyMsg);
         // 限制用户使用
-        if (openId != adminOpenId && hisObj.todayTokens >= 10000)
-            return "每名用户每天只能使用 10000 tokens\n今天的体力值用完啦,明天再来吧~🎁"
+        if (!superUser.includes(openId) && hisObj.todayTokens >= EverydatMaxFree)
+            return `每名用户每天只能使用 ${EverydatMaxFree} tokens\n今天的体力值用完啦,明天再来吧~🎁`
     }
 
-    // 单条消息长度不能超过1000
-    if (msg.length >= 1000)
-        return "消息太长啦~\n笨蛋哆啦理解不了!🏳️"
-    // 长度超限处理
-    const str = msgArr.map(item => {
-        return item.content;
-    }).join('\n');
-    if (str.length + msg.length >= 1500) {
-        const summaryPrompt = '请你概括我们之前的对话内容,要求总字数在150字以内.概括后的内容将作为你的记忆用于进一步的聊天';
-        msgArr.push({ "role": "user", "content": summaryPrompt });
-        const summaryMsg = await chatGPT(msgArr);
-        msgArr = [
-            { "role": "system", "content": hisObj.systemRole },
-            { "role": "assistant", "content": summaryMsg.reply }
-        ]
-        if (summaryMsg.status == 'error')
-            return summaryMsg.reply;
-        usageTokens += parseInt(summaryMsg.usage)
+    // 不具备上下文对话的普通模式
+    if (hisObj && hisObj.mode === 0) {
+        // 单条消息长度不能超过2000
+        if (msg.length >= 2000)
+            return "消息太长啦~\n笨蛋哆啦理解不了!🏳️"
+        msgArr = [{ "role": "user", "content": msg }];
     }
-
-    msgArr.push({ "role": "user", "content": msg });
-    const res = await chatGPT(msgArr);
-
+    // 上下文对话模式
+    else {
+        if (msg.length >= 1500)
+            return "消息太长啦~\n笨蛋哆啦理解不了!🏳️";
+        // 长度超限处理
+        const str = msgArr.map(item => {
+            return item.content;
+        }).join('\n');
+        if (str.length + msg.length >= 1500) {
+            const summaryPrompt = '请你概括我们之前的对话内容,要求总字数在150字以内.概括后的内容将作为你的记忆用于进一步的聊天';
+            msgArr.push({ "role": "user", "content": summaryPrompt });
+            const summaryMsg = await chatGPT(msgArr);
+            msgArr = [
+                { "role": "system", "content": hisObj.systemRole },
+                { "role": "assistant", "content": summaryMsg.reply }
+            ]
+            if (summaryMsg.status == 'error')
+                return summaryMsg.reply;
+            usageTokens += parseInt(summaryMsg.usage)
+        }
+        msgArr.push({ "role": "user", "content": msg });
+    }
+    const tmpMode = hisObj ? hisObj.mode : 0;
+    const res = await chatGPT(msgArr, tmpMode);
     // 调用ChatGPT接口出错时抛出错误
     if (res.status == 'error')
         return res.reply;
@@ -192,26 +242,30 @@ const runChat = async (msg, openId) => {
     msgArr.push({ "role": "assistant", "content": replyContent });
 
     try {
+        let tmptodayTokens = usageTokens;
         if (hisObj) {
             // 更新消息记录
-            hisObj.historyMsg = msgArr;
+            if (hisObj.mode === 1)
+                hisObj.historyMsg = msgArr;
             // 更新消耗tokens
             hisObj.totalTokens += usageTokens;
             hisObj.todayTokens += usageTokens;
+            tmptodayTokens = hisObj.todayTokens;
             await historyTable.save(hisObj);
         } else {
-            const userInfo = await feishuGetUser(openId);
+            let { mobile, realName } = await feishuGetUser(openId);
             await historyTable.save({
                 openId: openId,
                 historyMsg: msgArr,
                 systemRole: basePreStr,
-                mobile: userInfo.mobile,
-                realName: userInfo.realName,
+                mobile: mobile,
+                realName: realName,
                 totalTokens: usageTokens,
-                todayTokens: usageTokens
+                todayTokens: usageTokens,
+                mode: 0
             });
         }
-        return replyContent;
+        return replyContent + `\n\nCost ${usageTokens} tokens\nTotal ${tmptodayTokens} \/ ${EverydatMaxFree}`;
     } catch (err) {
         console.error(`-- [Error in runChat] --\n${err}`);
         return err;
@@ -235,6 +289,8 @@ const presetRole = async function (msg, openId) {
     try {
         const systemRole = msg.replace('/preset', '').trim();
         const hisObj = await historyTable.where({ openId }).findOne();
+        if (!hisObj || (hisObj && hisObj.mode == 0))
+            return "请先进入plus模式"
         let result = '';
         if (hisObj) {
             hisObj.historyMsg = [{ "role": "system", "content": systemRole }];
@@ -270,6 +326,82 @@ const getMsgHis = async function (openId) {
         return `-- [Error in getMsgHis] --\nPlease try again\n\n${error}`;
     }
 }
+
+const upgradePlus = async (openId) => {
+    const hisObj = await historyTable.where({ openId }).findOne();
+    // 重置消息记录
+    if (hisObj) {
+        await presetRole(basePreStr, openId);
+        // 设为上下文对话模式
+        hisObj.mode = 1;
+        await historyTable.save(hisObj)
+    }
+    else {
+        let { mobile, realName } = await feishuGetUser(openId);
+        await historyTable.save({
+            openId: openId,
+            mobile: mobile,
+            realName: realName,
+            historyMsg: [],
+            systemRole: basePreStr,
+            totalTokens: 0,
+            todayTokens: 0,
+            mode: 1
+        });
+    }
+    return "-- 已进入plus模式 -- ";
+}
+
+const normalMode = async (openId) => {
+    const hisObj = await historyTable.where({ openId }).findOne();
+    if (hisObj) {
+        // 设为普通模式
+        hisObj.mode = 0;
+        await historyTable.save(hisObj)
+    }
+    else {
+        let { mobile, realName } = await feishuGetUser(openId);
+        await historyTable.save({
+            openId: openId,
+            mobile: mobile,
+            realName: realName,
+            historyMsg: [],
+            systemRole: basePreStr,
+            totalTokens: 0,
+            todayTokens: 0,
+            mode: 0
+        });
+    }
+    return "-- 已进入普通模式 -- ";
+}
+
+const adminGetInfo = async () => {
+    const users = await historyTable.where().sort({ todayTokens: -1 }).find();
+    let tmpArr = users.map(item => {
+        if (item.todayTokens != 0)
+            return `${item.realName} : ${item.todayTokens}`;
+    }).filter(item => !!item);
+    let maxLen = 0;
+    tmpArr.forEach(item => {
+        if (item.length > maxLen) {
+            maxLen = item.length;
+        }
+    });
+    let result = tmpArr.map(item => {
+        return item.padEnd(maxLen, " ");
+    });
+    return '今日使用排行\n' + result.join('\n');
+}
+
+const queryStatus = async (openId) => {
+    const userObj = await historyTable.where({ openId }).findOne();
+    if (userObj) {
+        const { realName, todayTokens, mode } = userObj;
+        return `用户: ${realName}\n当前模式: ${mode == 0 ? '普通' : '上下文对话'}\n使用情况: ${todayTokens} \/ ${EverydatMaxFree} tokens\n帮助文档: https://uestc.feishu.cn/docx/T3lHdnWRcoU1cpx8MzUckiminRc`
+    }
+    else return '该用户尚未使用过应用';
+}
+
 const sendUpdateMsg = async function () {
     const userArr = await feishuGetAllValidUser();
     // const userArr = [adminOpenId];
@@ -309,13 +441,14 @@ module.exports = async function (params, context) {
     // 所有调用当前函数的参数都可以直接从 params 中获取
     // 飞书机器人每条用户消息都会有 event_id
     const eventId = params.header.event_id;
-    const contentsTable = aircode.db.table('contents');
+    const chatLogTable = aircode.db.table('chatLog');
     // 搜索 contents 表中是否有 eventId 与当前这次一致的
-    const contentObj = await contentsTable.where({ eventId }).findOne();
-    // 如果 contentObj 有值，则代表这条 event 出现过
+    const tmpLog = await chatLogTable.where({ eventId }).findOne();
+    // 如果 tmpLog 有值，则代表这条 event 出现过
     // 由于 ChatGPT 返回时间较长，这种情况可能是飞书系统的重试，直接 return 掉，防止重复调用
     // 当当前环境为 DEBUG 环境时，这条不生效，方便调试
-    if (contentObj && context.trigger !== 'DEBUG') return;
+    if (tmpLog && context.trigger !== 'DEBUG') return;
+
     const message = params.event.message;
     const msgType = message.message_type;
 
@@ -340,14 +473,14 @@ module.exports = async function (params, context) {
         content = content.replace('@_user_1 ', '');
         // 默认将用户发送的内容回复给用户，仅是一个直接返回对话的机器人
         replyContent = content;
-
-        // 将消息体信息储存到数据库中，以备后续查询历史或做上下文支持使用
-        await contentsTable.save({
-            eventId: params.header.event_id,
-            msgId: message.message_id,
-            openId,
-            content,
+        // 记录聊天日志
+        await chatLogTable.save({
+            openId: openId,
+            UserMsg: content,
+            eventId,
+            DoraReply: replyContent
         });
+
 
         // 如果配置了 OpenAI Key 则让 ChatGPT 回复
         if (OpenAISecret) {
@@ -358,6 +491,7 @@ module.exports = async function (params, context) {
         replyContent = 'Sorry~ 暂时不支持非文本类型的消息哦😜';
 
     if (replyContent == 'SILENT') return null;
+    await chatLogTable.where({ eventId }).set({ DoraReply: replyContent }).save();
     // 将处理后的消息通过飞书机器人发送给用户
     await feishuReply({
         msgId: message.message_id,
