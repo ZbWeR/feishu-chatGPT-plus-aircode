@@ -1,165 +1,121 @@
-<div align='center'>
-<h1 align='center'>🌸 连接飞书与chatGPT 🌊</h1>
-<img src='https://img.shields.io/github/license/zbwer/feishu-chatGPT-plus?style=plastic'>
-</div>
+# 用 JavaScript 开发企业微信 ChatGPT 应用（含全部源码，免费托管，手把手教程）
 
-**🍅 版权声明**
+本文将帮助你快速实现一个企业微信聊天应用，并且接入 ChatGPT。（以下为效果截图）
 
-本项目是基于 [Feishu-ChatGPT(aircode.cool)](https://aircode.cool/q4y1msdim4) 进行的二次开发,笔者尊重原作者的劳动成果,在此感谢原作者的贡献❤.
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/1-weixin-demo.jpg" width="310px" /></p>
 
-在进行二次开发时,笔者致力于保留原始仓库的核心功能，并添加新的特性以提供更优质的服务.
+## 你将学会
 
-## 🎯 新增特性
+1. 创建企业微信应用，如何配置接收消息 URL、企业可信 IP、解密消息
+2. 使用 AirCode 的「Get a copy」（一键复刻应用）功能，实现应用的聊天能力
+3. 给聊天应用接入 ChatGPT 能力
 
-GPT相关:
-+ [x] 💬现在,聊天机器人支持上下文对话的功能了!
-+ [x] 🎨用户可以使用`/preset`指令为机器人设置不同的人格.
+## 第一步：创建聊天应用
 
-飞书相关:
-+ [x] 🚀优化飞书应用凭证获取的方式提高资源利用率.
-+ [x] 🌈机器人现在能够发送更加丰富多彩的消息.
-+ [x] 🎨新增 获取可用范围内用户信息 的功能接口.
+1. 通过企业微信扫码登录[企业微信管理后台](https://work.weixin.qq.com/wework_admin/loginpage_wx)。
 
-## 🚨 注意
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/2-weixin-login.png" width="360px" /></p>
 
-1. 在使用本文档提供的代码前,请确保已经按照原仓库的说明进行配置和使用.
-2. 环境变量`SECRET_KEY`需要进行额外得配置(用于加密与解密):
+2. 在[企业微信管理后台](https://work.weixin.qq.com/wework_admin/frame#apps) "应用管理"下点击[创建应用](https://work.weixin.qq.com/wework_admin/frame#apps/createApiApp)，在表单中选择应用 Logo 图片、输入应用名称 ChatGPT，并且选择可见范围(选择部门/成员)完成创建。
 
-    ```javascript
-    //生成密钥：使用crypto模块中的randomBytes函数生成一个随机的密钥。
-    const crypto = require('crypto');
-    const key = crypto.randomBytes(32); // 生成一个32字节的密钥
-    console.log(key.toString('hex'));
-    ```
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/3-weixin.png" width="800px" /></p>
 
-  将控制台打印出来的key设置为环境变量`SECRET_KEY`的值.
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/4-weixin-create.png" width="500px" /></p>
 
-## 🌲 代码结构
+3. 创建应用后会进入应用详情页，点击第二行 Secret 栏的“查看”链接，弹窗后点击“发送”，Secret 会发送到你的企业微信中，收到后请复制保留备用。
 
-| 文件名           | 功能描述                                    |
-| :--------------- | :------------------------------------------ |
-| `chat.js`           | 与 **GPT** 对话并使用飞书提供的接口处理信息 |
-| `clearTokens.js`    | 每日更新用户使用限制                        |
-| `getTenantToken.js` | 定时获取飞书应用凭证                        |
-| `tokenToSecret.js`  | 对获取的应用凭证进行加密和解密操作          |
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/5-weixin.png" width="800px" /></p>
 
-## chat 中的飞书API
+4. 点击上一张截图顶部[我的企业](https://work.weixin.qq.com/wework_admin/frame#profile) tab 栏，左侧点击 [企业信息](https://work.weixin.qq.com/wework_admin/frame#profile/enterprise) 查看最底下一栏企业 ID，请复制保留备用。
 
-飞书绝大多数的 API 响应体结构包括下列三个部分:
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/6-weixin.png" width="800px" /></p>
 
-+ `code` :错误码。如果是成功响应，`code` 取值为 0。
-+ `msg`  :错误信息。如果是成功响应，`msg` 取值为 `"success"`。
-+ `data` : API 的调用结果。`data` 在一些操作类 API 的返回中可能不存在。
 
-### 🦄 [feishuSendMsg]
+## 第二步："Get a copy" 创建 AirCode 应用
 
-函数作用: 根据传入的参数 `objs` 发送不同的消息.
+1. 通过 [AirCode 源码链接](https://aircode.cool/54fhemjpk2)(当前页)右上角的「Get a copy」按钮快速生成一个自己的企业微信 ChatGPT 应用 AirCode 应用。
 
-官方文档: [发送消息内容 - 飞书开放平台 (feishu.cn)](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/im-v1/message/create_json)
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/7-weixin.png" width="800px" /></p>
 
-传入参数: 
+2. 如果没有登录，需先登录 AirCode，可以直接使用 GitHub 或 Google 授权登录，登录之后会重新弹窗创建当前应用。
 
-```js
-{
-    receive_id: openId,		// 接收者的openId
-    msg_type: 'interactive',// 消息类型,此处为消息卡片
-    // content具体格式与 msg_type 有关,详情请翻阅
-    content: `{"type": "template", "data": { "template_id": "${helpCardId}"} }`
-}
-```
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/8-sigin-aircode.png" width="800px" /></p>
 
-###  🍩 [feishuGetUser]
+3. 在弹出的对话框中，使用默认应用名称或输入新的应用名称，并点击 Create 完成创建。应用创建成功后会进入 /dashboard 页面，AirCode 需要一点时间来安装依赖（如下图 2 所示），请耐心等待。
 
-函数作用: 根据传入的 `openId` 获取用户的个人信息.
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/9-weixin.png" width="800px" /></p>
 
-官方文档:[获取单个用户信息 - 飞书开放平台 (feishu.cn)](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/contact-v3/user/get)
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/10-weixin.png" width="800px" /></p>
 
-传入参数: `openId` 发送消息者的用户标识.
+4. 将第一步创建聊天应用获得的企业 ID 以及接收到的 Secret，粘贴到刚创建的 AirCode 应用 /dashboard 页面的 Environments 环境变量中（上张截图右侧），在 CorpId 和 CorpSecret 栏的 value 处分别填入粘贴过来的企业 ID 和 应用 ChatGPT 的 Secret 的值。
 
-返回值说明: 
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/11-weixin.png" width="500px" /></p>
 
-| 名称     | 类型   | 描述           |
-| -------- | ------ | -------------- |
-| mobile   | string | 用户的手机号码 |
-| realName | string | 用户的真实姓名 |
+## 第三步：配置应用的 API 接收消息以及企业可信 IP
+  
+1. 企业微信后台 [应用管理](https://work.weixin.qq.com/wework_admin/frame#apps) 栏下点击刚刚创建的 ChatGPT 应用，在功能栏 "接收消息" 模块中点击 "设置 API 接收"。
 
-注意: 该函数涉及用户敏感隐私信息,请合法合规使用.
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/12-weixin.png" width="800px" /></p>
 
-### 🌵 [feishuGetAllValidUser]
 
-函数作用: 获取可用范围内的所有用户标识 `openId`.搭配发送信息的接口可以实现群发公告的功能.
+2. 点击 Token 和 EncodingAESKey 输入框右侧的 “随机获取”按钮(先不要点击下方 "保存" 按钮，第一行的 URL 将在下一步获得) 能获取到后台随机生成的 Token 和 EncodingAESKey 值（可复制保留备用），将这两个值粘贴到刚应用环境变量（Environments）中 Token 和 EncodingAESKey 栏的 value 处。
 
-官方文档: [获取通讯录授权范围 - 飞书开放平台 (feishu.cn)](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/contact-v3/scope/list)
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/13-weixin.png" width="800px" /></p>
 
-## chat 中的聊天功能
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/14-weixin.png" width="500px" /></p>
 
-### 🐘 [runChat]
 
-函数作用: 初步处理用户输入的信息,调用 GPT 的接口返回回复.
+3. 配置好环境变量（Environments）后，点击页面上方的「Deploy 按钮」部署整个应用，使所有配置生效。等待 AirCode 部署成功后，将 chat.js 文件对应的调用链接复制粘贴至上一步 "接收消息服务器配置" 中的 URL 栏，并点击保存按钮，配置成功截图如下面图 3 所示：
 
-官方文档:
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/15-deploy-aircode.png" width="800px" ></p>
 
-+ [Chat completion - OpenAI API](https://platform.openai.com/docs/guides/chat/introduction)
-+ [数据库概览 | AirCode 文档](https://docs-cn.aircode.io/guide/database/)
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/16-weixin.png" width="800px" /></p>
 
-具体说明: 首先判断用户输入的信息是否是 `/` 开头的指令,如果是指令则调用对应的函数. 如果是普通的消息,则向数据库中获取该用户的历史消息,将历史消息与当前消息一并发给 GPT 的接口进行处理.在此过程中如果信息大小超过一定限制会先让 GPT 进行概括再做处理.随后在数据库中更新该用户的历史消息.最终返回 GPT 的回复.
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/17-weixin.png" width="800px" /></p>
 
-**实现上下文对话的关键**: 利用好 `role: user/assistant`,user代表用户之前的问题,assistant代表 GPT 之前的回复,在发送消息时附带上之前的消息记录,即可实现上下文对话.
 
-**消息历史结构示例**:
+注意：由于企业微信验证 URL 会校验域名主体，当前 Demo 使用企业并未认证能正常配置，如果你的企业已完成认证，这里会因为无法通过 URL 域名校验无法保存出现如下报错，目前没有更好的方式能解决这个问题，如果你有更好的方案欢迎反馈。
 
-```json
-[
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Who won the world series in 2020?"},
-    {"role": "assistant", "content": "The Los Angeles Dodgers won the World Series in 2020."},
-    {"role": "user", "content": "Where was it played?"}
-]
-```
+如果遇到下面图中域名主体校验不通过的情况，可以尝试找一台在当前企业认证域名下的服务器，利用反向代理工具例如 Nginx 将这个域名的请求转发到 AirCode，在这个 URL 输入框中配置你的域名转发 URL 链接来完成这步配置。
 
-### 🍔 其他函数
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/18-weixin.png" width="800px" /></p>
 
-**presetRole**: 为 GPT 设置不同的人格,其本质在于对 `role:system` 的应用,该部分的消息有助于调整 GPT 的回复倾向.
 
-**clearHistory**:清除消息历史记录但不影响人格预设,即在数据库中只清除消息记录,不清除`role:system`对应的信息.
+4. 企业微信应用仅后台配置的 IP 可调用回复接口，AirCode 目前可以给指定的应用配置固定 IP，可以通过填写[申请表单](https://aircodelabs.feishu.cn/share/base/form/shrcneKKuRcr57iZzFSXjMMfPBb)方式提交，在申请前请确保上一步「接收消息服务器配置」成功，并且正确填写邮箱和你当前的 AirCode 应用 ID (是一个 6 位长度字符串，不要填写应用名称或企业微信的应用 ID)。
+由于配置固定 IP 需人工操作，提交后一个工作日内会进行配置，请耐心等待邮件反馈 IP 地址。在获得固定 IP 后在应用详情页 “开发者接口” 栏的 “企业可信IP” 模块里点击 “配置” 链接，在弹窗中粘贴该 IP 串，按确认键保存。
 
-**getMsgHis**: 返回当前用户的消息记录.
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/19-weixin.png" width="800px" /></p>
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/20-weixin.png" width="800px" /></p>
 
-### 🎬 数据库结构
 
-| 名称        | 类型   | 描述                                             |
-| ----------- | ------ | ------------------------------------------------ |
-| openId      | string | 用户身份标识                                     |
-| historyMsg  | object | 消息历史记录,实际为json数组,结构已在上文给出示例 |
-| systemRole  | string | 用于人格预设的信息                               |
-| totalTokens | number | 用户总共花费的tokens                             |
-| todayTokens | number | 用户当天花费的tokens,用于限制使用                |
+## 第四步：测试聊天应用
 
-## 🔑 token 的加密解密
+1. 打开你的企业微信 - 工作台中(拉到最底下)，点击你的应用 ChatGPT 进入聊天框。由于还没有配置 ChatGPT 能力，AirCode 应用会直接将你发送的消息返回，这时表示应用已经配置成功。
 
-加密 / 解密的函数在 `tokenToSecret.js` 中.
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/21-weixin.jpg" width="380px" /></p>
 
-加密解密 发生在数据库存取 token 的过程中
+如果遇到在后台配置 URL 报错或测试应用回复信息时无响应的情况，可以在 AirCode 右侧 Logs tab 下（如下图）查看日志（展开具体报错信息）排查原因。
 
-### 🏊 [enCrypt]
+<p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/22-weixin.png"  width="800px" /></p>
 
-函数作用: 对传入的 token 加密
+## 第五步：接入 ChatGPT 能力
 
-加密原理: 利用随机向量`iv`和环境变量`SECRET_KEY`使用AES-256-CBC加密算法对传入的参数进行加密,并将密文和随机向量转换成hex字符串返回.
+1. 到 [OpenAI 的控制台](https://platform.openai.com/account/api-keys)中，点「Create new secret key」生成并且复制这个新生成的 Key，粘贴到刚创建的 AirCode 应用的环境变量（Environments）中，粘贴到 OpenAIKey 的 value 中。如果没有 OpenAI 账号，可以到网络中搜索一下获取方式，提前购买准备好。
 
-### 🚴 [deCrypt]
+ <p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/23-weixin.png" width="800px" /></p>
 
-函数作用: 对传入的 data 进行解密
+ <p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/24-openAI.png" width="800px" /></p>
 
-加密原理: 利用传入数据中携带的随机向量`iv`和环境变量`SECRET_KEY`使用解密算法,并将解密后的结果转换为字符串返回.
+ <p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/25-weixin.png" width="500px" /></p>
 
-### 🛌 [getTenantToken]
+2. 点击上方 Deploy 按钮再次部署让环境变量生效，在企业微信里给应用 ChatGPT 发送消息测试 ChatGPT 的回复。
 
-函数作用: 获取飞书的应用凭证,该凭证将用于后续所有飞书相关API的调用.
+ <p align="center"><img src="https://docs-cn.aircode.io/_images/tutorials/weixin-chatgpt/26-weixin.png" width="800px" ></p>
 
-官方文档: 
+## 问题反馈
 
-+ [访问凭证说明 - 飞书开放平台 (feishu.cn)](https://open.feishu.cn/document/ukTMukTMukTM/uMTNz4yM1MjLzUzM#a8683ac2)
+- 微信、钉钉、飞书等用户交流群，点击 [https://docs-cn.aircode.io/help/](https://docs-cn.aircode.io/help/)
 
-+ [商店应用获取 tenant_access_token](https://open.feishu.cn/document/ukTMukTMukTM/ukDNz4SO0MjL5QzM/auth-v3/auth/tenant_access_token)
+## 更多阅读
 
+- 企业微信、钉钉、飞书、iOS Siri 接入 ChatGPT 手把手教程，全部源码，免费托管，点击 [https://docs-cn.aircode.io/chatgpt/](https://docs-cn.aircode.io/chatgpt/)
