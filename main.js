@@ -37,22 +37,9 @@ if (OpenAISecret) {
     };
 }
 
-// 从环境变量中获取飞书机器人的 App ID 和 App Secret
-const feishuAppId = store.feishu.appId;
-const feishuAppSecret = store.feishu.appSecret;
 
 const basePreStr = store.prompt.basePreset;
-const EverydayMaxFree = store.maxTokensPerDay;
-
-const welcomeCardId = 'ctp_AAr5mnM3XFSa';
-const adminOpenId = store.adminId;
-const superUser = [adminOpenId];
-
 const userInstructions = store.instruction;
-const adminInstructions = {
-    'sendUpdateMsg': '推送更新信息',
-    'admin': '查看每日使用情况'
-}
 
 const runChat = async (msg, openId) => {
     const operationMap = [
