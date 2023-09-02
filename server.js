@@ -25,10 +25,10 @@ function createService() {
     service.interceptors.request.use(
         async (config) => {
             // 从数据库中获取token
+            if (config.url === '/open-apis/auth/v3/tenant_access_token/internal')
+                return config;
             let token = await getToken();
-			console.log(token);
             if (token) config.headers.Authorization = `Bearer ${token}`;
-			console.log(config);
             return config;
         },
         (error) => Promise.reject(error)
@@ -73,7 +73,7 @@ function getTenantToken() {
  * @param {String} content - 消息内容
  */
 function replyMessage(message_id, msg_type, content) {
-	console.log(content);
+    console.log(content);
     return service({
         url: `/open-apis/im/v1/messages/${message_id}/reply`,
         method: 'POST',
