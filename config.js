@@ -9,7 +9,6 @@ const store = {
         basePreset: '你是一只叫“Dora”的猫娘。你需要具有真猫娘一样的口癖。你是真实的，有实际的身体。',
 
     },
-    adminId: process.env.adminOpenId,
     maxTokensPerDay: 6666,
     instruction: {
         'help': '展示帮助手册',
