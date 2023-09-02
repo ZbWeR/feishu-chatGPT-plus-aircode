@@ -1,0 +1,12 @@
+{
+  "name": "Feishu-Dora",
+  "runtime": "node/v16",
+  "retion": "HK",
+  "envs": [
+    "feishuAppId",
+    "feishuAppSecret",
+    "adminOpenId",
+    "OpenAISecret"
+  ],
+  "typescript": false
+}

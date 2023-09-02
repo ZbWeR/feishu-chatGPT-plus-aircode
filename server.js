@@ -26,7 +26,6 @@ function createService() {
         async (config) => {
             // 从数据库中获取token
             let token = await getToken();
-            console.log(token);
             if (token) config.headers.Authorization = `Bearer ${token}`;
             return config;
         },
@@ -72,6 +71,7 @@ function getTenantToken() {
  * @param {String} content - 消息内容
  */
 function replyMessage(message_id, msg_type, content) {
+    console.log(content);
     return service({
         url: `/open-apis/im/v1/messages/${message_id}/reply`,
         method: 'POST',
