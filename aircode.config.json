@@ -5,7 +5,6 @@
   "envs": [
     "feishuAppId",
     "feishuAppSecret",
-    "adminOpenId",
     "OpenAISecret"
   ],
   "typescript": false
