@@ -16,7 +16,7 @@
 
 ## 🐳 部署相关
 
-一键部署：
+**一键部署**：
 
 <div align='center'>
 	<a href="https://aircode.io/dashboard?owner=ZbWeR&repo=feishu-chatGPT-plus&branch=master&path=&appname=Feishu-Dora">
@@ -24,7 +24,7 @@
 	</a>
 </div>
 
-环境变量配置: 参考[飞书 ChatGPT 机器人 - (aircode.cool)](https://aircode.cool/q4y1msdim4)进行配置
+**环境变量配置**: 参考[飞书 ChatGPT 机器人 - (aircode.cool)](https://aircode.cool/q4y1msdim4)进行配置
 
 | key             | value               |
 | --------------- | ------------------- |
@@ -32,9 +32,15 @@
 | feishuAppSecret | 飞书应用凭证 secret |
 | OpenAISecret    | OpenAi 的 API-key   |
 
-定时任务配置:
+完成环境变量配置之后请点击 `deploy`
+
+**定时任务配置**: (在`deploy`完成后)
 
 ![](./src/step1.jpg)
 
 
 ![](./src/step2.jpg)
+
+**飞书配置**：
+
+![](./src/step3.jpg)
