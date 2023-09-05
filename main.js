@@ -13,11 +13,11 @@ if (OpenAISecret) {
     // 与 ChatGTP 聊天的方法，传入字符串即可
     const configuration = new openai.Configuration({ apiKey: OpenAISecret });
     const client = new openai.OpenAIApi(configuration);
-    chatGPT = async (content, mode) => {
+    chatGPT = async (content, mode, gpt4Model = false) => {
         let max_tokens = mode == 0 ? 3500 : 2500;
         try {
             const res = await client.createChatCompletion({
-                model: 'gpt-3.5-turbo',
+                model: gpt4Model ? 'gpt-4' : 'gpt-3.5-turbo',
                 messages: content,
                 temperature: 0.9,
                 max_tokens: max_tokens
@@ -69,6 +69,15 @@ const runChat = async (msg, openId) => {
         [
             () => msg === '/get',
             async () => await getMsgHis(openId)
+        ],
+        [
+            () => msg === '/gpt4',
+            async () => await switchGPT(openId, true)
+
+        ],
+        [
+            () => msg === '/gpt3.5',
+            async () => await switchGPT(openId, false)
         ]
     ]
     const handleFun = operationMap.find(item => item[0]())
@@ -103,7 +112,7 @@ const runChat = async (msg, openId) => {
         if (str.length + msg.length >= 1500) {
             const summaryPrompt = '简要总结一下对话内容，用作后续的上下文提示 prompt，控制在 200 字以内';
             msgArr.push({ "role": "user", "content": summaryPrompt });
-            const summaryMsg = await chatGPT(msgArr);
+            const summaryMsg = await chatGPT(msgArr, 0, hisObj?.gpt4Model || false);
             msgArr = [
                 { "role": "system", "content": hisObj.systemRole },
                 { "role": "assistant", "content": summaryMsg.reply }
@@ -114,7 +123,7 @@ const runChat = async (msg, openId) => {
         msgArr.push({ "role": "user", "content": msg });
     }
     const tmpMode = hisObj ? hisObj.dialogMode : 0;
-    const res = await chatGPT(msgArr, tmpMode);
+    const res = await chatGPT(msgArr, tmpMode, hisObj?.gpt4Model || false);
 
     // 调用ChatGPT接口出错时抛出错误
     if (res.status == 'error')
@@ -134,7 +143,8 @@ const runChat = async (msg, openId) => {
                 openId: openId,
                 chatHistory: msgArr,
                 systemRole: basePreStr,
-                dialogMode: 1
+                dialogMode: 1,
+                gpt4Model: false
             });
         }
         return replyContent;
@@ -165,13 +175,14 @@ async function sendHelpText(openId) {
  * @param {Number} dialogMode - 对话模式
  * @returns 
  */
-async function initUserInfo(openId, systemRole = basePreStr, dialogMode = 1) {
+async function initUserInfo(openId, systemRole = basePreStr, dialogMode = 1, gpt4Model = false) {
     try {
         await userConfig.save({
             openId: openId,
             systemRole,
             dialogMode,
             chatHistory: [{ "role": "system", "content": basePreStr }],
+            gpt4Model
         });
     } catch {
         console.error('--初始化用户信息出错--');
@@ -249,6 +260,30 @@ async function switchMode(openId, mode) {
             return "-- 已进入单次对话模式 --";
     } catch {
         console.error('--切换对话模式出错--');
+        return "出错啦!请稍后再试";
+    }
+}
+
+/**
+ * 切换GPT模型
+ * @param {String} openId - 用户id 
+ * @param {Boolean} gpt4Model - 是否使用GPT 
+ */
+async function switchGPT(openId, gpt4Model) {
+    try {
+        const hisObj = await userConfig.where({ openId }).findOne();
+        if (hisObj) {
+            hisObj.gpt4Model = gpt4Model;
+            await userConfig.save(hisObj);
+        } else {
+            await initUserInfo(openId, basePreStr, 1, gpt4Model);
+        }
+        if (gpt4Model === true)
+            return "🎨 gpt4 启动!";
+        else
+            return "🚀 gpt3 启动!";
+    } catch {
+        console.error('--切换 GPT 模型出错--');
         return "出错啦!请稍后再试";
     }
 }
