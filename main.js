@@ -68,7 +68,7 @@ const runChat = async (msg, openId) => {
         ],
         [
             () => msg === '/get',
-            async () => await getMsgHis(openId)
+            async () => await getUserConf(openId)
         ],
         [
             () => msg === '/gpt4',
@@ -368,6 +368,24 @@ async function preOperation(message, openId, eventId) {
     return content;
 }
 
+/**
+ * 获取用户配置信息
+ * @param {String} openId - 用户id 
+ */
+const getUserConf = async function (openId) {
+    try {
+        const hisObj = await userConfig.where({ openId }).findOne();
+        if (hisObj) {
+            return `<b>GPT模型: </b>${hisObj.gpt4Model ? 'gpt-4' : 'gpt-3.5-turbo'}\n<b>对话模式: </b>${hisObj.dialogMode ? '具有记忆的上下文对话' : '能返回更多内容的单次对话'}\n<b>用户预设: </b>${hisObj.systemRole}`
+        } else {
+            await initUserInfo(openId);
+            throw new console.error(('初次使用'));
+        }
+    } catch (err) {
+        return `获取用户信息出错,请再试一次😭`;
+    }
+
+}
 
 //获取消息记录(废弃)
 const getMsgHis = async function (openId) {
