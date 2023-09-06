@@ -14,7 +14,9 @@ if (OpenAISecret) {
     const configuration = new openai.Configuration({ apiKey: OpenAISecret });
     const client = new openai.OpenAIApi(configuration);
     chatGPT = async (content, mode, gpt4Model = false) => {
-        let max_tokens = mode == 0 ? 3500 : 2500;
+        let max_tokens = 2500;
+        if (mode == 0) max_tokens = 3500;
+        if (mode == -1) max_tokens = 500;
         try {
             const res = await client.createChatCompletion({
                 model: gpt4Model ? 'gpt-4' : 'gpt-3.5-turbo',
@@ -111,8 +113,9 @@ const runChat = async (msg, openId) => {
         }).join('\n');
         if (str.length + msg.length >= 1500) {
             const summaryPrompt = '简要总结一下对话内容，用作后续的上下文提示 prompt，控制在 200 字以内';
+            msgArr[0] = { "role": "system", "content": "" };
             msgArr.push({ "role": "user", "content": summaryPrompt });
-            const summaryMsg = await chatGPT(msgArr, 0, hisObj?.gpt4Model || false);
+            const summaryMsg = await chatGPT(msgArr, -1, hisObj?.gpt4Model || false);
             msgArr = [
                 { "role": "system", "content": hisObj.systemRole },
                 { "role": "assistant", "content": summaryMsg.reply }
