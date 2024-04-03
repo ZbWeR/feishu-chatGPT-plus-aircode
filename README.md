@@ -3,6 +3,18 @@
 <img src='https://img.shields.io/github/license/zbwer/feishu-chatGPT-plus?style=plastic'>
 </div>
 
+
+## 重要通知
+
+本项目基于 AirCode 二次开发，由于 AirCode 已于近期关停服务，该项目也不再进行维护。
+
+![image](https://github.com/ZbWeR/feishu-chatGPT-plus/assets/49082837/a5f6e713-7acb-4c82-9d6b-6f1224ad1f34)
+
+
+感谢 AirCode 一路陪伴，以上。
+
+---
+
 **版权声明**
 
 本项目是基于 [Feishu-ChatGPT(aircode.cool)](https://aircode.cool/q4y1msdim4) 的二次开发,笔者尊重原作者的劳动成果,在此感谢原作者的贡献.
